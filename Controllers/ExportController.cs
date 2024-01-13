@@ -1,33 +1,74 @@
+using App.Broker;
+using App.Domain.Entities;
+using App.Domain.Interfaces.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel;
+using System.Text.Json;
+using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Portifolio_queue.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class ExportController : ControllerBase
+    public class ExportController(ILogger<Queue> logger, IQueueRepository queueRepository) : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
 
-        private readonly ILogger<WeatherForecastController> _logger;
+        private readonly ILogger<Queue> _logger = logger;
+        private readonly IQueueRepository _repository = queueRepository;
 
-        public ExportController(ILogger<WeatherForecastController> logger)
+        // ID EXAMPLE: A2A803B3-9B5D-473B-9408-79176080B80D
+        [HttpGet("consumed/{id}")]
+        public IActionResult Get(Guid id)
         {
-            _logger = logger;
+            return Ok(_repository.Find(id));
         }
 
-        [HttpGet(Name = "GetBlalBla")]
-        public IEnumerable<WeatherForecast> Get(Guid id)
+        [HttpPost("")]
+        public IActionResult Post([FromBody] Queue data)
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var publisher = new Publisher();
+            var entity = data;
+            entity.Id = Guid.NewGuid();
+            _ = publisher.Sender("export", JsonSerializer.Serialize(data));
+            return Ok($" Exportação enviada para fila: {entity.Id}");
+        }
+
+
+        [HttpGet("")]
+        public async Task<IActionResult> GetAsync()
+        {
+            try
             {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+                var consumer = new Consumer();
+                var entity = await consumer.ConsumeAsync("export");
+
+                if (entity != null)
+                {
+                    _repository.Create(entity);
+                    return Ok(entity);
+                }
+
+                return NotFound("Nenhuma mensagem encontrada na fila.");
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao processar a operação: {ex.Message}");
+            }
         }
+
+
+
+
+
+
+        /*W
+        [HttpGet(Name = "GetQueues")]
+        public IEnumerable<Queue> Get([FromBody] object? parameters = null)
+        {
+            return _repository.FindAll((Func<Queue, bool>?)parameters);
+        }
+        */
     }
 }

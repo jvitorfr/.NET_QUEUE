@@ -1,3 +1,4 @@
+using App.Domain.Interfaces.Repositories;
 using App.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +12,8 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddDbContext<BaseDbContext>();
+builder.Services.AddScoped<IQueueRepository, QueueRepository>();
 
 //builder.Services.AddDbContext<BaseDbContext>(options =>
 //           options.UseSqlite(builder.Configuration.GetConnectionString("SqliteConnectionString")));
